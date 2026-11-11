@@ -1,34 +1,47 @@
-# Repository notes (Computer Architecture study guide)
+# Repository notes (Computer Architecture annotated study guide)
 
 ## What this repo is
-`Computer Architecture.pdf` (87 pages, handwritten lecture notes) + `ca1.png`..`ca41.png`
-(scans of past exam papers). Deliverable: `Computer_Architecture_Study_Guide.pdf`.
+`Computer Architecture.pdf` — 87 pages of handwritten lecture notes.
+`ca1.png` .. `ca41.png` — 41 scans of previous-year exam papers (a scan may hold several questions).
+Deliverable: `Computer_Architecture_Study_Guide.pdf` — an **annotated, page-by-page** guide.
 
-## Build pipeline
-Sources live in `/tmp/ca/build`:
-- `gen.py` — ReportLab setup + flowable helpers (`fig formula callout bullets table Banner h1..h4 p`) and the `TocDocTemplate` / `build_toc` used for the contents page.
-- `content1.py`..`content7.py` — the authored content, each exposing `build()` that appends to a local `F` via `def A(x): F.extend(...)`.
-- `extra.py` — `EXTRA[<name>]` string blocks with the sections the previous guide lacked (cache levels, levels of parallelism, SIMD/MIMD, shared vs distributed memory, topologies, DVFS, superscalar, CPU-time metrics, a worked Tomasulo example) plus `PAGE_MAP` (notes page -> topic) used to build the coverage table.
-- `pool.json` / `sections.json` — the content of `content*.py` extracted unit-by-unit (an `ast` walk of each `build()`); `sections.json` groups units into sections keyed by a stable slug (`<module>__<slug>`).
-- `gen2.py` — rebuilds the guide **in the exact order of the handwritten notes**. Its `ORDER` list is the single source of truth for sequence; each entry is `('banner'|'sec'|'extra'|'pyqindex'|'coverage'|'audit', ...)`. It renumbers the `h3`/`h4` headings to `§n.sub` and de-duplicates figures.
-- `assemble2.py` — imports `gen2`, adds the title page + TOC, writes the PDF, prints pages/size/images.
+## What the deliverable is
+The guide follows the handwritten notes from page 1 to page 87 **in the exact original order**.
+For every content-bearing page it shows: (1) a legible screenshot of the original handwritten page,
+(2) a transcription, (3) a full explanation of every concept, formula, diagram, table, example and
+annotation, expanded from first principles with variables defined. All 41 past-paper scans are
+transcribed and solved, and each is placed at the notes page whose topic it examines. Appendices:
+PYQ index, 87-row source-coverage table, verification report. No page limit is imposed.
 
-Build: `python3 assemble2.py <out.pdf>`.
+## Build pipeline (sources live in `build/`, working copies in `/tmp/ca/build`)
+- `gen.py` — ReportLab setup, fonts, colour palette, paragraph styles, flowable helpers
+  (`p bullets formula callout table fig h1..h4`), and `build_toc` (two-pass build for TOC page numbers).
+- `gen3.py` — the page-by-page primitives: `PageBand` (the per-page banner, TOC-registered),
+  `screenshot`, `ca_screenshot`, `Transcript` (the transcription box) and `eval_units`
+  (compiles a snippet of `A(...)` source into flowables).
+- `pagecontent_1.py` .. `pagecontent_5.py` — `PAGES[n]` dicts for the handwritten pages
+  (`title`, `transcript`, `explain` (a string of `A(...)` calls), `pyqs=[...]`).
+- `pagecontent_pyq.py` + `pagecontent_pyq2/3/4.py` — `PYQS[ca]` dicts (later files override earlier
+  ones with the most faithful transcriptions). Every scan ca1..ca41 has one.
+- `assemble3.py` — the entry point: builds the title page, TOC, then loops `num = 1..87`
+  emitting band → screenshot → transcription → explanation → attached PYQ solutions, then the appendices.
+- `prepare_assets.py` — renders `Computer Architecture.pdf` to `/tmp/ca/pages/pageNNN.png` (200 dpi)
+  and writes the compressed JPEGs `/tmp/ca/embed/pageNNN.jpg` and `/tmp/ca/embed/caN.jpg`.
+
+## Build steps
+```
+python3 build/prepare_assets.py          # needs Computer Architecture.pdf + ca*.png
+cd /tmp/ca/build && python3 assemble3.py /tmp/ca/build/annotated.pdf
+cp /tmp/ca/build/annotated.pdf /workspace/project/networks/Computer_Architecture_Study_Guide.pdf
+```
 
 ## Gotchas
-- Heredocs (`<<'EOF'`) silently strip a literal `\n` inside a line when writing Python string literals -> use `chr(10)` or write patch scripts with the file editor instead.
-- Every `A(fig("pageNNN.jpg", ...))` must have a matching `A(p("<b>Reading the figure.</b> ..."))` explanation paragraph (currently 46 figures, all explained).
-- `sections.json` keys are position-based internally; always address sections by their `stable` slug.
-- Re-generating `sections.json` after editing `content*.py` requires the ast-walk snippet; the stable slugs must stay the same.
-- Fonts: Liberation under `/usr/share/fonts/truetype/liberation` (DejaVu fallback).
-- Note pages rendered to `/tmp/ca/pages/pageNNN.png` and `/tmp/ca/figs/pageNNN.jpg` (figure sources).
+- `prepare_assets.py` writes to `/tmp/ca/...`, which is wiped between sessions — regenerate first.
+- `gen3.PageBand` truncates over-long titles to the band width; keep titles short.
+- Never shorten a transcription to fit a page — the guide has no page limit.
+- PYQ assignment must stay a partition: run the checker that every ca1..ca41 is assigned exactly once.
+- The notes are handwriting; a few marginal annotations are only partly legible. Say so rather than guess.
 
 ## Status
-Guide is 81 pages / 46 diagrams, ordered to follow the notes page-by-page:
-foundations (pp. 2-7) -> ISA/RISC-CISC/data (pp. 12-13, 15, 18) -> performance & Amdahl
-(pp. 19-23) -> dependability (pp. 24-27) -> CPU time/CPI/MIPS (pp. 28-32) -> pipelining
-(pp. 33-36) -> loop unrolling (pp. 49-52) -> branch prediction (pp. 37-41, 45-46) ->
-scoreboarding/Tomasulo (pp. 42-44, 47-48, 53-60) -> speculation/ROB (pp. 55-66) ->
-multiprocessors (pp. 5, 7-11, 68) -> cache (pp. 70-81) -> virtual memory (p. 82) ->
-cache coherence (pp. 84-87) -> vector/SIMD/GPU (pp. 16-17, 61-62) -> appendices
-(PYQ index, 87-row coverage table, audit report).
+232 pages, 128 embedded images (87 note screenshots + 41 PYQ scans), 0 layout overflows,
+all 87 pages annotated, all 41 PYQs solved, TOC resolved.
